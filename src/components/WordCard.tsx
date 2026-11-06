@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { type MouseEvent, useEffect, useRef, useState } from 'react'
 import styled from 'styled-components'
 import { fadeInUp, float } from './animations'
 
@@ -38,6 +38,15 @@ const Card = styled.div`
   &:hover {
     transform: translateY(-5px) rotateX(2deg);
   }
+
+  @media (max-width: 768px) {
+    padding: 22px 16px;
+    border-radius: 18px;
+
+    &:hover {
+      transform: none;
+    }
+  }
 `
 
 // 标题样式
@@ -58,6 +67,12 @@ const Title = styled.h1<{ bgIndex: number }>`
   animation: ${float} 6s ease-in-out infinite;
   letter-spacing: -0.02em;
   line-height: 1.1;
+
+  @media (max-width: 768px) {
+    font-size: 2.2rem;
+    margin-bottom: 20px;
+    word-break: break-word;
+  }
 `
 
 // 文本样式
@@ -104,6 +119,15 @@ const ListItem = styled.li`
       left: 100%;
     }
   }
+
+  @media (max-width: 768px) {
+    padding: 12px 14px;
+
+    &:hover {
+      transform: none;
+      box-shadow: none;
+    }
+  }
 `
 
 // 按钮样式
@@ -141,6 +165,12 @@ const Button = styled.button<{ i?: number }>`
   &:active {
     transform: translateY(-1px) scale(1.02);
   }
+
+  @media (max-width: 768px) {
+    padding: 12px 20px;
+    font-size: 15px;
+    margin: 8px;
+  }
 `
 
 const PlayButton = styled(Button)`
@@ -151,13 +181,17 @@ const PlayButton = styled(Button)`
   }
 `
 
-const FeedbackText = styled.div<{ type: 'success' | 'info' }>`
+const FeedbackText = styled.div<{ $tone: 'muted' | 'success' | 'info'; $darkBg: boolean }>`
   min-height: 24px;
   margin-top: 2px;
-  color: ${props => (props.type === 'success' ? '#bbf7d0' : '#fde68a')};
   font-size: 14px;
   font-weight: 600;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  color: ${props => {
+    if (props.$tone === 'success') return props.$darkBg ? '#bbf7d0' : '#15803d'
+    if (props.$tone === 'info') return props.$darkBg ? '#fde68a' : '#b45309'
+    return props.$darkBg ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.5)'
+  }};
+  text-shadow: ${props => (props.$darkBg ? '0 2px 8px rgba(0, 0, 0, 0.4)' : 'none')};
 `
 
 interface WordCardProps {
@@ -170,10 +204,13 @@ interface WordCardProps {
   bgIndex: number
   isLoading: boolean
   showContent: boolean
-  onSettingsClick: () => void
   onPlayPhonetic: (type: 'us' | 'uk') => void
   onDontKnow: (word: string, translations: Translation[]) => boolean
+  onToggleContent: () => void
 }
+
+const isInteractiveTarget = (target: EventTarget | null) =>
+  target instanceof Element && Boolean(target.closest('button, a, input, select, textarea'))
 
 export const WordCard = ({
   word,
@@ -186,7 +223,8 @@ export const WordCard = ({
   isLoading,
   showContent,
   onPlayPhonetic,
-  onDontKnow
+  onDontKnow,
+  onToggleContent
 }: WordCardProps) => {
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'info' } | null>(
     null
@@ -204,6 +242,16 @@ export const WordCard = ({
   useEffect(() => {
     setFeedback(null)
   }, [word])
+
+  const handleDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (isInteractiveTarget(event.target)) {
+      return
+    }
+
+    // 双击会顺带选中卡片里的文字，这里清掉，避免切换释义时一片高亮
+    window.getSelection()?.removeAllRanges()
+    onToggleContent()
+  }
 
   const handleDontKnow = () => {
     const added = onDontKnow(word, translations)
@@ -234,7 +282,7 @@ export const WordCard = ({
   }
 
   return (
-    <Card>
+    <Card onDoubleClick={handleDoubleClick}>
       <Title bgIndex={bgIndex}>{word}</Title>
       <div
         style={{
@@ -290,8 +338,12 @@ export const WordCard = ({
       )}
       <div style={{ textAlign: 'center', marginTop: '20px' }}>
         <Button onClick={handleDontKnow}>不会</Button>
-        <FeedbackText type={feedback?.type ?? 'success'} aria-live="polite">
-          {feedback?.message}
+        <FeedbackText
+          $tone={feedback ? feedback.type : 'muted'}
+          $darkBg={bgIndex !== 0}
+          aria-live="polite"
+        >
+          {feedback?.message ?? '双击卡片可隐藏 / 显示释义'}
         </FeedbackText>
       </div>
     </Card>

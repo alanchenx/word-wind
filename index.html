@@ -65,6 +65,12 @@
           animation: octocat-wave 560ms ease-in-out;
         }
       }
+      /* 移动端顶部空间让给搜索框，避免角标遮挡操作 */
+      @media (max-width: 768px) {
+        .github-corner {
+          display: none;
+        }
+      }
     </style>
     <script type="module" src="/src/main.tsx"></script>
     <!-- Cloudflare Web Analytics -->

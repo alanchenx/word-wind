@@ -60,8 +60,10 @@ const Container = styled.div<{ bg: string; textColor: string }>`
 
   @media (max-width: 768px) {
     flex-direction: column;
-    padding: 80px 10px;
+    justify-content: flex-start;
     align-items: stretch;
+    min-height: 100dvh;
+    padding: 14px 12px 18px;
   }
 `
 
@@ -82,8 +84,8 @@ const Sidebar = styled.div`
   @media (max-width: 768px) {
     position: static;
     width: 100%;
-    margin-bottom: 20px;
-    padding: 15px;
+    margin: 10px 0 0;
+    padding: 14px;
   }
 `
 
@@ -188,7 +190,7 @@ const SearchForm = styled.form`
     position: static;
     transform: none;
     width: 100%;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
   }
 `
 
@@ -235,7 +237,7 @@ const SearchMessage = styled.div<{ $isError: boolean }>`
     position: static;
     transform: none;
     width: 100%;
-    margin: -6px 0 14px;
+    margin: -4px 0 10px;
     text-align: center;
   }
 `
@@ -263,8 +265,10 @@ const FixedSettingsButton = styled.button<{ textColor: string }>`
 
   @media (max-width: 768px) {
     position: static;
-    padding: 8px 15px;
-    font-size: 14px;
+    flex: 1 1 0;
+    padding: 11px 12px;
+    font-size: 15px;
+    text-align: center;
   }
 `
 
@@ -306,6 +310,11 @@ const LeftArrowButton = styled(ArrowButton)`
 
   @media (max-width: 768px) {
     position: static;
+    flex: 1 1 0;
+    justify-content: center;
+    padding: 12px 8px;
+    font-size: 15px;
+    gap: 6px;
   }
 `
 
@@ -318,26 +327,117 @@ const RightArrowButton = styled(ArrowButton)`
 
   @media (max-width: 768px) {
     position: static;
+    flex: 1 1 0;
+    justify-content: center;
+    padding: 12px 8px;
+    font-size: 15px;
+    gap: 6px;
   }
 `
 
-// 箭头按钮容器（移动端）
+// 随机下一个按钮（位于“下一个”下方）
+const RandomArrowButton = styled(ArrowButton)`
+  position: fixed;
+  bottom: 132px;
+  right: 50px;
+  z-index: 10;
+  gap: 6px;
+
+  @media (max-width: 768px) {
+    position: static;
+    flex: 0 0 52px;
+    justify-content: center;
+    padding: 12px 0;
+    font-size: 18px;
+    gap: 0;
+
+    .random-label {
+      display: none;
+    }
+  }
+`
+
+// 箭头按钮容器（移动端：位于搜索框下方）
 const ArrowContainer = styled.div`
   @media (max-width: 768px) {
     display: flex;
-    justify-content: space-between;
+    align-items: stretch;
+    gap: 8px;
     width: 100%;
-    margin-top: 20px;
+    margin: 0 0 12px;
   }
 `
 
-// 按钮容器（移动端）
+// 单词卡片区域
+const CardArea = styled.div`
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+
+  @media (max-width: 768px) {
+    flex: 1 0 auto;
+    width: 100%;
+    align-items: flex-start;
+  }
+`
+
+// 按钮容器（移动端：设置区域内并排）
 const ButtonContainer = styled.div`
   @media (max-width: 768px) {
     display: flex;
-    justify-content: space-between;
+    gap: 8px;
     width: 100%;
-    margin-top: 20px;
+    margin-top: 10px;
+  }
+`
+
+// 移动端底部设置区：桌面端用 display: contents，让内部元素保持原有的固定定位
+const SettingsSection = styled.section`
+  display: contents;
+
+  @media (max-width: 768px) {
+    display: block;
+    width: 100%;
+    margin-top: auto;
+    padding-top: 16px;
+  }
+`
+
+// 移动端设置区折叠开关
+const SettingsToggle = styled.button<{ textColor: string }>`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.13);
+    backdrop-filter: blur(12px);
+    color: ${props => props.textColor};
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+
+    &:focus {
+      outline: none;
+    }
+  }
+`
+
+// 移动端设置区面板，默认折叠
+const SettingsBody = styled.div<{ $open: boolean }>`
+  display: contents;
+
+  @media (max-width: 768px) {
+    display: ${props => (props.$open ? 'block' : 'none')};
+    width: 100%;
   }
 `
 
@@ -426,6 +526,7 @@ function App() {
   const [sentences, setSentences] = useState<Sentence[]>([])
   const [bgIndex, setBgIndex] = useState(getStoredBackgroundIndex)
   const [showSettings, setShowSettings] = useState(false)
+  const [showMobileSettings, setShowMobileSettings] = useState(false)
   const [showUnknown, setShowUnknown] = useState(false)
   const [showCardContent, setShowCardContent] = useState(getStoredContentVisible)
   const [selectedLibrary, setSelectedLibrary] = useState(getStoredLibrary)
@@ -621,6 +722,21 @@ function App() {
     [clampIndex, currentIndex, isLoading]
   )
 
+  const goToRandomWord = useCallback(() => {
+    if (isLoading || wordRequestLockedRef.current || totalWords < 2) {
+      return
+    }
+
+    // 随机结果可能与当前单词相同，这时往后顺延一位，避免点了没反应
+    let nextIndex = Math.floor(Math.random() * totalWords) + 1
+    if (nextIndex === currentIndex) {
+      nextIndex = (nextIndex % totalWords) + 1
+    }
+
+    wordRequestLockedRef.current = true
+    setCurrentIndex(nextIndex)
+  }, [currentIndex, isLoading, totalWords])
+
   const handlePageSelect = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
@@ -738,11 +854,16 @@ function App() {
         event.preventDefault()
         changeWord(1)
       }
+
+      if (event.key.toLowerCase() === 'r') {
+        event.preventDefault()
+        goToRandomWord()
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [changeWord])
+  }, [changeWord, goToRandomWord])
 
   return (
     <>
@@ -774,67 +895,6 @@ function App() {
             {searchMessage.text}
           </SearchMessage>
         )}
-        <Sidebar>
-          <Select
-            textColor={bgIndex === 0 ? '#000' : '#fff'}
-            value={selectedLibrary}
-            onChange={e => handleLibraryChange(e.target.value)}
-          >
-            <option value="chuzhong">初中</option>
-            <option value="gaozhong">高中</option>
-            <option value="cet4">CET4</option>
-            <option value="cet6">CET6</option>
-            <option value="kaoyan">考研</option>
-            <option value="toefl">托福</option>
-            <option value="sat">SAT</option>
-          </Select>
-          <DisplayBox textColor={bgIndex === 0 ? '#000' : '#fff'}>
-            {`当前是${libraryNames[selectedLibrary]}词库\n第${currentIndex}个，共${totalWords}个`}
-          </DisplayBox>
-          <PageSelectorForm onSubmit={handlePageSelect}>
-            <PageInput
-              textColor={bgIndex === 0 ? '#000' : '#fff'}
-              type="number"
-              min={1}
-              max={totalWords || undefined}
-              inputMode="numeric"
-              value={pageInput}
-              placeholder="页码"
-              onChange={event => setPageInput(event.target.value)}
-              aria-label="选择页码"
-            />
-            <PageJumpButton
-              textColor={bgIndex === 0 ? '#000' : '#fff'}
-              type="submit"
-              disabled={isLoading || totalWords === 0}
-            >
-              跳转
-            </PageJumpButton>
-          </PageSelectorForm>
-          <ContentToggleButton
-            textColor={bgIndex === 0 ? '#000' : '#fff'}
-            type="button"
-            onClick={handleContentVisibilityToggle}
-          >
-            {showCardContent ? '隐藏释义' : '显示释义'}
-          </ContentToggleButton>
-        </Sidebar>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-          <WordCard
-            word={word}
-            us={us}
-            uk={uk}
-            translations={translations}
-            phrases={phrases}
-            sentences={sentences}
-            bgIndex={bgIndex}
-            isLoading={isLoading}
-            showContent={showCardContent}
-            onSettingsClick={() => setShowSettings(true)}
-            onPlayPhonetic={playPhonetic}
-            onDontKnow={handleDontKnow}
-          />
-        </div>
         <ArrowContainer>
           <LeftArrowButton
             textColor={bgIndex === 0 ? '#000' : '#fff'}
@@ -850,21 +910,114 @@ function App() {
           >
             下一个 ➡️
           </RightArrowButton>
+          <RandomArrowButton
+            textColor={bgIndex === 0 ? '#000' : '#fff'}
+            onClick={goToRandomWord}
+            disabled={isLoading || totalWords < 2}
+            aria-label="随机下一个"
+          >
+            <span aria-hidden="true">🎲</span>
+            <span className="random-label">随机下一个</span>
+          </RandomArrowButton>
         </ArrowContainer>
-        <ButtonContainer>
-          <FixedSettingsButton
+        <CardArea>
+          <WordCard
+            word={word}
+            us={us}
+            uk={uk}
+            translations={translations}
+            phrases={phrases}
+            sentences={sentences}
+            bgIndex={bgIndex}
+            isLoading={isLoading}
+            showContent={showCardContent}
+            onPlayPhonetic={playPhonetic}
+            onDontKnow={handleDontKnow}
+            onToggleContent={handleContentVisibilityToggle}
+          />
+        </CardArea>
+        <SettingsSection aria-label="单词书与设置">
+          <SettingsToggle
             textColor={bgIndex === 0 ? '#000' : '#fff'}
-            onClick={() => setShowSettings(true)}
+            type="button"
+            aria-expanded={showMobileSettings}
+            aria-controls="app-settings-panel"
+            onClick={() => setShowMobileSettings(open => !open)}
           >
-            设置&反馈
-          </FixedSettingsButton>
-          <UnknownWordsButton
-            textColor={bgIndex === 0 ? '#000' : '#fff'}
-            onClick={() => setShowUnknown(true)}
-          >
-            不会的单词
-          </UnknownWordsButton>
-        </ButtonContainer>
+            <span>设置 · 词库与跳转</span>
+            <span
+              aria-hidden="true"
+              style={{
+                display: 'inline-block',
+                transition: 'transform 0.2s ease',
+                transform: showMobileSettings ? 'rotate(180deg)' : 'none'
+              }}
+            >
+              ▾
+            </span>
+          </SettingsToggle>
+          <SettingsBody id="app-settings-panel" $open={showMobileSettings}>
+            <Sidebar>
+              <Select
+                textColor={bgIndex === 0 ? '#000' : '#fff'}
+                value={selectedLibrary}
+                onChange={e => handleLibraryChange(e.target.value)}
+              >
+                <option value="chuzhong">初中</option>
+                <option value="gaozhong">高中</option>
+                <option value="cet4">CET4</option>
+                <option value="cet6">CET6</option>
+                <option value="kaoyan">考研</option>
+                <option value="toefl">托福</option>
+                <option value="sat">SAT</option>
+              </Select>
+              <DisplayBox textColor={bgIndex === 0 ? '#000' : '#fff'}>
+                {`当前是${libraryNames[selectedLibrary]}词库\n第${currentIndex}个，共${totalWords}个`}
+              </DisplayBox>
+              <PageSelectorForm onSubmit={handlePageSelect}>
+                <PageInput
+                  textColor={bgIndex === 0 ? '#000' : '#fff'}
+                  type="number"
+                  min={1}
+                  max={totalWords || undefined}
+                  inputMode="numeric"
+                  value={pageInput}
+                  placeholder="页码"
+                  onChange={event => setPageInput(event.target.value)}
+                  aria-label="选择页码"
+                />
+                <PageJumpButton
+                  textColor={bgIndex === 0 ? '#000' : '#fff'}
+                  type="submit"
+                  disabled={isLoading || totalWords === 0}
+                >
+                  跳转
+                </PageJumpButton>
+              </PageSelectorForm>
+              <ContentToggleButton
+                textColor={bgIndex === 0 ? '#000' : '#fff'}
+                type="button"
+                onClick={handleContentVisibilityToggle}
+              >
+                {showCardContent ? '隐藏释义' : '显示释义'}
+              </ContentToggleButton>
+            </Sidebar>
+            <ButtonContainer>
+              <FixedSettingsButton
+                textColor={bgIndex === 0 ? '#000' : '#fff'}
+                onClick={() => setShowSettings(true)}
+              >
+                设置&反馈
+              </FixedSettingsButton>
+              <UnknownWordsButton
+                textColor={bgIndex === 0 ? '#000' : '#fff'}
+                onClick={() => setShowUnknown(true)}
+              >
+                不会的单词
+              </UnknownWordsButton>
+            </ButtonContainer>
+          </SettingsBody>
+        </SettingsSection>
         <SettingsModal
           show={showSettings}
           onClose={() => setShowSettings(false)}
